@@ -1,9 +1,9 @@
-[README.md](https://github.com/user-attachments/files/34113054/README.md)
+[README.md](https://github.com/user-attachments/files/34113157/README.md)
 # 🧳 Packmate
 
 A travel packing checklist web app. Set your departure date and trip length, tick off items by category, and get a reminder of anything still unpacked the day before and on the day you leave.
 
-**Live app:** https://valerieliao0102.github.io/packmate/
+**Live app:** https://valerieliao0102.github.io/Packmate/
 
 ## Features
 
