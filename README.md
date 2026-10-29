@@ -1,15 +1,25 @@
-# 🧳 Packmate 行李清單
+[README.md](https://github.com/user-attachments/files/34113054/README.md)
+# 🧳 Packmate
 
-出國行李清單網頁 App：設定出發日期與幾天幾夜後，依分類勾選要帶的東西，出發前一天和當天會提醒還沒打包的物品。
+A travel packing checklist web app. Set your departure date and trip length, tick off items by category, and get a reminder of anything still unpacked the day before and on the day you leave.
 
-## 功能
-- 設定目的地、出發日期、幾天幾夜與旅行情境（海島、出差、寒冷地區、登山、帶小孩）
-- 14 個分類，區分「必帶」與「可帶可不帶」，衣物件數依天數自動計算
-- 出門前檢查清單、託運與安檢小提醒
-- 紀錄存在使用者自己的瀏覽器，不需註冊帳號
+**Live app:** https://valerieliao0102.github.io/packmate/
 
-## 版權聲明
+## Features
+
+- **Trip setup** – destination, departure date, number of days and nights, and trip type (beach, business, cold weather, hiking, travelling with kids)
+- **14 categories** – each split into *Must-pack* and *Optional* items, so the essentials never get buried
+- **Smart quantities** – clothing counts are calculated from the length of your trip
+- **Countdown & reminders** – a countdown to departure, plus a list of unpacked essentials the day before and on departure day
+- **Before-you-leave checklist** – gas off, plugs out, windows locked, and more
+- **Carry-on & security tips** – e.g. power banks must go in carry-on, liquids over 100 ml go in checked baggage
+- **Multiple trips** – plan and track several trips at once
+- **No account needed** – your list is saved in your own browser
+
+> Note: Data is stored locally in your browser. It will not sync across devices and will be lost if you clear your browsing data or use private/incognito mode.
+
+## Copyright
+
 © 2026 Valerie Liao. All rights reserved.
 
-本專案**未採用任何開源授權**。程式碼、設計與內容之著作權均歸作者所有，
-未經書面同意，禁止重製、修改、散布或用於任何商業或非商業用途。
+This project is **not open source** and is not released under any license. All code, design, and content are the property of the author. You may not copy, modify, distribute, or use any part of this project, for commercial or non-commercial purposes, without prior written permission.
