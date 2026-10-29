@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Packmate｜行李清單</title>
+<meta name="description" content="出國行李清單：設定天數與出發日，依分類勾選必帶物品，出發當天提醒還沒打包的東西。">
+<meta name="author" content="Valerie Liao">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧳</text></svg>">
+<meta name="apple-mobile-web-app-title" content="Packmate">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF7F0; --surface:#FFFEFA; --ink:#3B3A36; --muted:#8C887E; --line:#ECE6D9;
+  --board:#E3F3EC; --board-ink:#2F4A42; --sign:#5DB39E; --sign-ink:#FFFFFF; --ok:#5DB39E;
+  --mint-soft:#DDF1E9; --mint-ink:#2E7A68;
+  --tint:rgba(59,58,54,.05); --tint-line:rgba(93,179,158,.45);
+  --danger:#D9725F;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1D1C19; --surface:#272622; --ink:#ECE7DC; --muted:#A39E92; --line:#36342F;
+    --board:#24352F; --board-ink:#DDF1E9; --sign:#7CC6B4; --sign-ink:#16241F; --ok:#7CC6B4; --danger:#E8907F;
+    --mint-soft:#2A3D37; --mint-ink:#9AD9C8;
+    --tint:rgba(255,255,255,.05); --tint-line:rgba(124,198,180,.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1D1C19; --surface:#272622; --ink:#ECE7DC; --muted:#A39E92; --line:#36342F;
+    --board:#24352F; --board-ink:#DDF1E9; --sign:#7CC6B4; --sign-ink:#16241F; --ok:#7CC6B4; --danger:#E8907F;
+    --mint-soft:#2A3D37; --mint-ink:#9AD9C8;
+    --tint:rgba(255,255,255,.05); --tint-line:rgba(124,198,180,.45);
+    color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ok);outline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 48px}
+
+/* trip tabs */
+.trips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.trips::-webkit-scrollbar{display:none}
+.trip-tab{flex:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px;white-space:nowrap}
+.trip-tab[aria-pressed="true"]{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:700}
+.trip-tab.add{border-style:dashed;color:var(--muted)}
+
+/* departure board */
+.board{background:var(--board);color:var(--board-ink);border-radius:14px;padding:18px 18px 16px;position:relative;overflow:hidden}
+.board::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--sign) 0 22px,var(--board) 22px 34px)}
+.board-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dest{font-size:clamp(30px,9vw,46px);font-weight:900;letter-spacing:.04em;line-height:1.1;margin:0;word-break:break-all}
+.trip-name{font-size:15px;opacity:.75;margin-top:4px}
+.edit-btn{background:transparent;border:1px solid var(--tint-line);color:var(--board-ink);border-radius:8px;padding:4px 10px;font-size:13px;flex:none}
+.flaps{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.flap{background:var(--tint);border-radius:8px;padding:8px 12px;min-width:84px}
+.flap b{display:block;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.2}
+.flap span{font-size:12px;opacity:.75}
+.progress{margin-top:14px;height:10px;border-radius:5px;background:var(--tint);overflow:hidden;margin-bottom:8px}
+.progress i{display:block;height:100%;background:var(--ok);width:0;transition:width .35s ease}
+.status{font-size:13px;opacity:.85}
+.status.done{color:var(--ok);font-weight:700;opacity:1}
+
+/* packs */
+.section-h{font-size:15px;font-weight:700;margin:22px 0 8px;color:var(--muted)}
+.packs{display:flex;flex-wrap:wrap;gap:8px}
+.pack{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 12px;font-size:14px}
+.pack[disabled]{opacity:.45;cursor:default}
+
+/* toolbar */
+.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:22px 0 10px;flex-wrap:wrap}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.toggle input{width:18px;height:18px;accent-color:var(--ok)}
+.ghost{background:transparent;border:none;color:var(--muted);font-size:14px;padding:6px 4px;text-decoration:underline;text-underline-offset:3px}
+
+/* categories */
+.cat{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.cat-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.cat-h h3{margin:0;font-size:16px}
+.cat-h .count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cat-h .count.full{color:var(--ok);font-weight:700}
+.items{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:none}
+.item label{flex:1;display:flex;align-items:center;gap:12px;cursor:pointer;min-height:28px}
+.item input[type=checkbox]{appearance:none;width:22px;height:22px;border:2px solid var(--muted);border-radius:6px;flex:none;display:grid;place-content:center;transition:background .15s,border-color .15s}
+.item input[type=checkbox]:checked{background:var(--ok);border-color:var(--ok)}
+.item input[type=checkbox]:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.del{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:6px}
+.del:hover{color:var(--danger)}
+.add-row{display:flex;gap:8px;padding:10px 14px;background:color-mix(in srgb,var(--bg) 60%,var(--surface))}
+.add-row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;font-size:15px}
+.btn{border:none;background:var(--ok);color:#fff;border-radius:8px;padding:7px 14px;font-size:14px;font-weight:700;flex:none}
+.btn.sign{background:var(--sign);color:var(--sign-ink)}
+.new-cat{display:flex;gap:8px;margin-top:4px}
+.new-cat input{flex:1;min-width:0;border:1.5px dashed var(--line);background:transparent;border-radius:10px;padding:9px 12px;font-size:15px}
+.cat-del{background:none;border:none;color:var(--muted);font-size:12px;margin-left:10px}
+.empty-cat{padding:12px 14px;color:var(--muted);font-size:14px}
+
+/* dialog */
+dialog{border:none;border-radius:14px;padding:20px;background:var(--surface);color:var(--ink);width:min(92vw,420px)}
+dialog::backdrop{background:rgba(10,15,30,.55)}
+dialog h2{margin:0 0 14px;font-size:19px}
+.field{display:block;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.field input{display:block;width:100%;margin-top:4px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;font-size:16px;color:var(--ink)}
+.dialog-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px}
+.dialog-actions .right{display:flex;gap:8px}
+.btn.line{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.danger-link{background:none;border:none;color:var(--danger);font-size:14px;padding:0}
+.sync{font-size:12px;color:var(--muted);text-align:center;margin-top:24px}
+
+/* setup screen */
+.setup{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding:24px 16px}
+.setup-card{background:var(--board);color:var(--board-ink);border-radius:18px;padding:26px 22px 30px;position:relative;overflow:hidden}
+.setup-card::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--sign) 0 22px,var(--board) 22px 34px)}
+.setup h1{font-size:clamp(28px,8vw,40px);font-weight:900;margin:0 0 4px;letter-spacing:.03em}
+.setup p.lead{margin:0 0 22px;opacity:.75;font-size:15px}
+.s-field{display:block;margin-bottom:18px;font-size:14px;opacity:.9}
+.s-field>input{display:block;width:100%;margin-top:6px;border:1px solid var(--tint-line);background:var(--tint);color:var(--board-ink);border-radius:10px;padding:11px 12px;font-size:17px;}
+.dn{display:flex;gap:12px;margin-top:6px}
+.stepper{flex:1;display:flex;align-items:center;justify-content:space-between;background:var(--tint);border:1px solid var(--tint-line);border-radius:10px;padding:6px}
+.stepper button{width:40px;height:40px;border-radius:8px;border:none;background:var(--tint);color:var(--board-ink);font-size:20px}
+.stepper output{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
+.stepper small{font-size:13px;opacity:.7;margin-left:2px}
+.s-packs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.s-pack{border:1.5px solid var(--tint-line);background:transparent;color:var(--board-ink);border-radius:10px;padding:7px 12px;font-size:14px}
+.s-pack[aria-pressed="true"]{background:var(--sign);color:var(--sign-ink);border-color:var(--sign);font-weight:700}
+.go{width:100%;margin-top:8px;border:none;background:var(--sign);color:var(--sign-ink);font-weight:900;font-size:18px;border-radius:12px;padding:14px;letter-spacing:.1em}
+.setup .back{display:block;margin:14px auto 0;background:none;border:none;color:var(--muted);text-decoration:underline;font-size:14px}
+.err{color:var(--danger);font-size:13px;margin-top:-10px;margin-bottom:12px;min-height:1em}
+
+/* checked rows highlighted */
+.item{transition:background .15s}
+.item.done{background:var(--ok)}
+.item.done .name{color:#fff;text-decoration:none;font-weight:700}
+.item.done input[type=checkbox]{border-color:#fff;background:#fff}
+.item.done input[type=checkbox]::after{border-color:var(--ok)!important}
+.item.done .del,.item.done .qty{color:rgba(255,255,255,.85)}
+.qty{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:auto;padding-left:8px}
+
+/* departure alert */
+.alert{display:none;margin-top:14px;background:var(--sign);color:var(--sign-ink);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;align-items:center;justify-content:space-between;gap:10px}
+.alert.show{display:flex}
+.alert button{border:none;background:var(--sign-ink);color:var(--sign);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;flex:none}
+.missing{max-height:50vh;overflow:auto;margin:0 0 4px}
+.missing h4{margin:12px 0 4px;font-size:14px;color:var(--muted)}
+.missing ul{margin:0;padding-left:20px}
+.missing li{padding:2px 0}
+.dlg-sub{margin:-8px 0 8px;color:var(--muted);font-size:14px}
+
+/* overview cards */
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:104px}
+.card b{font-size:16px;line-height:1.3}
+.card .meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-top:auto;font-variant-numeric:tabular-nums}
+.card .mini{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.card .mini i{display:block;height:100%;background:var(--ok)}
+.card.full{border-color:var(--ok)}
+.card.full .meta span:first-child{color:var(--ok);font-weight:700}
+.card .chev{font-size:18px;color:var(--muted)}
+/* category page */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;gap:8px;padding:10px 0;margin-bottom:6px}
+.backbtn{border:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:15px}
+.topbar h2{flex:1;margin:0;font-size:20px;text-align:center}
+.topbar .count{min-width:58px;text-align:right;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cat-progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-bottom:14px}
+.cat-progress i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.cat-foot{display:flex;justify-content:space-between;margin-top:6px}
+.nextcat{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.nextcat button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px;font-size:14px;color:var(--muted)}
+.nextcat button[disabled]{visibility:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+
+/* collapsible tree */
+.cat-h{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.cat:not(.open) .cat-h{border-bottom:none}
+.cat-h h3{display:flex;align-items:center;gap:10px}
+.caret{width:9px;height:9px;border-right:2.5px solid var(--muted);border-bottom:2.5px solid var(--muted);transform:rotate(-45deg);transition:transform .2s;flex:none;margin-right:2px}
+.cat.open .caret{transform:rotate(45deg) translate(-2px,-2px)}
+.cat.is-full .cat-h h3{color:var(--ok)}
+.cat-del{visibility:hidden}
+.cat.open .cat-del{visibility:visible}
+.tree{position:relative;padding:4px 0 4px 26px}
+.tree .item{position:relative;border-bottom:none;padding:7px 12px;margin:3px 12px 3px 14px;border-radius:10px}
+.tree .item::before{content:"";position:absolute;left:-14px;top:-4px;height:calc(50% + 4px);width:12px;border-left:2px solid var(--tint-line);border-bottom:2px solid var(--tint-line);border-bottom-left-radius:8px}
+.tree .item::after{content:"";position:absolute;left:-14px;top:50%;bottom:-4px;border-left:2px solid var(--tint-line)}
+.tree .item:last-child::after{display:none}
+.tree .item:first-child::before{top:-8px;height:calc(50% + 8px)}
+
+/* must / optional */
+.branch{font-size:13px;font-weight:700;color:var(--ok);padding:10px 16px 0 22px}
+.opt-h{display:flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer;padding-bottom:8px;user-select:none}
+.opt-count{margin-left:auto;font-weight:400;font-variant-numeric:tabular-nums}
+.caret.sm{width:7px;height:7px;border-width:0 2px 2px 0}
+.opt-h.on .caret{transform:rotate(45deg) translate(-2px,-2px)}
+.item.opt:not(.done) .name{color:var(--muted)}
+.add-row select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 6px;font-size:14px;flex:none}
+
+/* login notice */
+.login-note{display:flex;flex-direction:column;gap:4px;background:color-mix(in srgb,var(--sign) 22%,var(--surface));border:1.5px solid var(--sign);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px;line-height:1.55}
+.login-note b{font-size:15px}
+.login-ok{font-size:13px;color:var(--ok);margin-bottom:12px;font-weight:700}
+
+/* carry-on notes */
+.name .warn{display:block;font-size:12px;font-weight:500;color:var(--danger);line-height:1.4;margin-top:1px}
+.item.done .name .warn{color:rgba(255,255,255,.9)}
+
+/* home */
+.home-h{font-size:clamp(26px,7vw,34px);font-weight:900;margin:8px 0 4px}
+.home-sub{margin:0 0 16px;color:var(--muted);font-size:15px}
+.trip-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.trip-card{display:flex;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.trip-card .tc-main{flex:1;min-width:0}
+.trip-card b{display:block;font-size:19px}
+.trip-card small{color:var(--muted);font-size:13px}
+.trip-card .mini{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px}
+.trip-card .mini i{display:block;height:100%;background:var(--ok)}
+.trip-card .due{flex:none;text-align:center;background:var(--board);color:var(--board-ink);border-radius:10px;padding:6px 10px;min-width:64px}
+.trip-card .due strong{display:block;font-size:20px;line-height:1.2}
+.trip-card .due span{font-size:11px}
+.trip-card .due.today{background:var(--sign);color:var(--sign-ink)}
+.trip-row{display:flex;flex-direction:column}
+.trip-row .trip-card{width:100%}
+.trip-x{align-self:flex-end;background:none;border:none;color:var(--muted);font-size:13px;padding:4px 6px;margin-top:2px}
+.trip-x:hover{color:var(--danger)}
+.new-trip-btn{width:100%;border:1.5px dashed var(--tint-line);background:transparent;border-radius:14px;padding:14px;font-size:16px;color:var(--muted);margin-bottom:16px}
+.listbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.backbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 14px;font-size:15px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* ===== 日系清新 ===== */
+.device-note{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 16px;line-height:1.55}
+.inapp-tip{margin-top:4px;font-size:13px;color:var(--muted)}
+.inapp-tip.strong{color:var(--danger);font-weight:700;font-size:14px}
+.copyright{text-align:center;font-size:12px;color:var(--muted);margin:20px 0 0;opacity:.85}
+body{background:var(--bg);letter-spacing:.02em}
+.dest,.setup h1,.home-h{font-weight:700;letter-spacing:.06em}
+.board,.setup-card{background:var(--board);color:var(--board-ink);box-shadow:none;border:1px solid color-mix(in srgb,var(--ok) 25%,transparent)}
+.board::before,.setup-card::before{display:none}
+.board::after,.setup-card::after{height:auto;top:auto;bottom:14px;left:18px;right:18px;background:none;border-bottom:1.5px dashed var(--tint-line)}
+.board>*,.setup-card>*{position:relative;z-index:1}
+.board{padding-bottom:30px}
+.board .plane{position:absolute;bottom:4px;font-size:16px;z-index:2;transition:left .5s ease;transform:translateX(-50%) rotate(45deg);filter:grayscale(.2)}
+.board .flap{background:var(--surface);border:1px solid var(--line)}
+.board .flap span{opacity:1;color:var(--muted)}
+.board .progress{background:var(--surface)}
+.board .progress i{background:var(--ok)}
+.board .status{opacity:1;color:var(--muted)}
+.board .status.done{color:var(--mint-ink)}
+.edit-btn{color:var(--board-ink);border-color:var(--tint-line);background:var(--surface)}
+.trip-name{opacity:1;color:var(--muted)}
+.setup p.lead{opacity:1;color:var(--muted)}
+.s-field{opacity:1;color:var(--board-ink)}
+.setup-card .s-field>input,.setup-card .stepper{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+.setup-card .stepper button{background:var(--mint-soft);color:var(--mint-ink)}
+.setup-card .s-pack{border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.setup-card .s-pack[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--sign-ink)}
+.setup-card .err{color:var(--danger)}
+.go{border-radius:999px;letter-spacing:.2em;font-weight:700}
+.home-h{color:var(--ink)}
+.trip-card .due{background:var(--mint-soft);color:var(--mint-ink)}
+.trip-card .due.today{background:var(--ok);color:var(--sign-ink)}
+.cat{border:1px solid var(--line);border-left:1px solid var(--line);box-shadow:none;border-radius:16px}
+.cat-h .ico{font-size:18px;line-height:1;opacity:.9}
+.cat .branch:not(.opt-h){color:var(--mint-ink)}
+.cat.is-full .cat-h h3{color:var(--mint-ink)}
+.count.full{color:var(--mint-ink)}
+.pack{border:1px solid var(--line);background:var(--surface);border-radius:999px}
+.pack:not([disabled]):hover{background:var(--mint-soft)}
+.btn{background:var(--ok);color:var(--sign-ink);border-radius:999px}
+.btn.line{background:transparent;color:var(--ink)}
+.add-row{background:var(--bg)}
+.backbtn{border-radius:999px}
+/* checked = soft mint highlight */
+.item.done{background:var(--mint-soft)}
+.item.done .name{color:var(--mint-ink)}
+.item.done input[type=checkbox]{background:var(--ok);border-color:var(--ok)}
+.item.done input[type=checkbox]::after{border-color:#fff!important}
+.item.done .del,.item.done .qty{color:var(--mint-ink)}
+.item.done .name .warn{color:var(--mint-ink);opacity:.8}
+.progress i,.mini i{background:var(--ok)!important}
+.login-note{background:color-mix(in srgb,#F2C66D 18%,var(--surface));border-color:#E8C27A}
+.alert{background:var(--ok);color:var(--sign-ink)}
+.alert button{background:var(--surface);color:var(--mint-ink)}
+</style>
+</head>
+<body>
+<!-- SETUP SCREEN -->
+<div class="wrap setup" id="setupView" hidden>
+  <p class="device-note">📱 清單會存在這支手機的瀏覽器裡。換手機、清除瀏覽紀錄或用無痕模式會不見喔。</p>
+  <div id="homeTrips" hidden>
+    <h1 class="home-h">我的行程</h1>
+    <p class="home-sub">點一趟旅程進入行李清單</p>
+    <div class="trip-list" id="tripList"></div>
+    <button class="new-trip-btn" id="newTripBtn">＋ 規劃新旅程</button>
+  </div>
+  <form class="setup-card" id="setupForm" novalidate>
+    <h1 id="setupTitle">準備出發</h1>
+    <p class="lead">先告訴我這趟旅程，我幫你排好行李清單。</p>
+    <label class="s-field">目的地<input id="sDest" maxlength="20" placeholder="例如：東京" autocomplete="off"></label>
+    <label class="s-field">出發日期<input id="sDate" type="date"></label>
+    <div class="err" id="sErr"></div>
+    <div class="s-field">行程長度
+      <div class="dn">
+        <div class="stepper"><button type="button" data-step="days" data-d="-1" aria-label="減少天數">−</button><span><output id="sDays">5</output><small>天</small></span><button type="button" data-step="days" data-d="1" aria-label="增加天數">＋</button></div>
+        <div class="stepper"><button type="button" data-step="nights" data-d="-1" aria-label="減少夜數">−</button><span><output id="sNights">4</output><small>夜</small></span><button type="button" data-step="nights" data-d="1" aria-label="增加夜數">＋</button></div>
+      </div>
+    </div>
+    <div class="s-field">這趟會…（可複選）<div class="s-packs" id="sPacks"></div></div>
+    <button class="go" type="submit" id="sGo">開始打包</button>
+  </form>
+  <button class="back" id="setupBack" hidden>收起</button>
+  <p class="copyright">Packmate · © 2026 Valerie Liao 版權所有，未經同意請勿重製或轉載</p>
+</div>
+
+<!-- LIST SCREEN -->
+<div class="wrap" id="listView" hidden>
+  <div class="listbar"><button class="backbtn" id="homeBtn">‹ 我的行程</button></div>
+
+  <section class="board" aria-live="polite">
+    <div class="board-top">
+      <div>
+        <h1 class="dest" id="dest"></h1>
+        <div class="trip-name" id="tripName"></div>
+      </div>
+      <button class="edit-btn" id="editTrip">編輯</button>
+    </div>
+    <div class="flaps">
+      <div class="flap"><b id="countdown"></b><span id="countdownLabel">天後出發</span></div>
+      <div class="flap"><b id="dn"></b><span>行程</span></div>
+      <div class="flap"><b id="packed"></b><span>已打包</span></div>
+      <div class="flap"><b id="left"></b><span>還沒放</span></div>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+    <span class="plane" id="plane" aria-hidden="true">✈️</span>
+    <div class="status" id="status"></div>
+    <div class="alert" id="alert"><span id="alertText"></span><button id="alertBtn">看清單</button></div>
+  </section>
+
+  <h2 class="section-h">加入情境清單</h2>
+  <div class="packs" id="packs"></div>
+
+  <div class="toolbar">
+    <label class="toggle"><input type="checkbox" id="hideDone"> 隱藏已打包</label>
+    <button class="ghost" id="resetChecks">全部取消勾選</button>
+  </div>
+
+  <div id="cats"></div>
+
+  <form class="new-cat" id="newCatForm">
+    <input id="newCatInput" placeholder="新增分類，例如：伴手禮" aria-label="新增分類名稱">
+    <button class="btn line" type="submit">新增分類</button>
+  </form>
+
+  <p class="sync" id="sync"></p>
+  <p class="copyright">Packmate · © 2026 Valerie Liao 版權所有，未經同意請勿重製或轉載</p>
+</div>
+
+
+
+<!-- edit dialog -->
+<dialog id="tripDialog">
+  <form id="tripForm">
+    <h2>編輯行程</h2>
+    <label class="field">目的地<input id="fDest" required maxlength="20"></label>
+    <label class="field">出發日期<input id="fDate" type="date" required></label>
+    <div style="display:flex;gap:10px">
+      <label class="field" style="flex:1">天數<input id="fDays" type="number" min="1" max="90" inputmode="numeric"></label>
+      <label class="field" style="flex:1">夜數<input id="fNights" type="number" min="0" max="90" inputmode="numeric"></label>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="danger-link" id="deleteTrip">刪除行程</button>
+      <div class="right">
+        <button type="button" class="btn line" id="cancelDialog">取消</button>
+        <button type="submit" class="btn sign">儲存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- confirm dialog (window.confirm is blocked in this viewer) -->
+<dialog id="confirmDialog">
+  <h2 id="confirmText" style="font-size:17px;line-height:1.5"></h2>
+  <div class="dialog-actions">
+    <span></span>
+    <div class="right">
+      <button class="btn line" id="confirmNo">取消</button>
+      <button class="btn" id="confirmYes" style="background:var(--danger)">確定</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- departure-day reminder -->
+<dialog id="remindDialog">
+  <h2 id="remindTitle"></h2>
+  <p class="dlg-sub" id="remindSub"></p>
+  <div class="missing" id="missingList"></div>
+  <div class="dialog-actions">
+    <span></span>
+    <div class="right">
+      <button class="btn line" id="remindLater">晚點再看</button>
+      <button class="btn sign" id="remindGo">去打包</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const BASE = [
+  ["證件", ["護照（效期 6 個月以上）","身分證","機票／登機證","訂房確認資料","?駕照／國際駕照","?旅平險保單","?護照影本","?大頭照（2 吋，備用）","?緊急聯絡資料"]],
+  ["錢包與付款", ["信用卡","台幣現金","外幣","?提款卡","?零錢包"]],
+  ["充電與電源", ["手機充電線","充電頭（豆腐頭）","行動電源","萬用轉接頭","?延長線／多孔插座","?耳機充電線","?手錶充電器"]],
+  ["3C 設備", ["手機","網卡／eSIM","?耳機","?取卡針","?相機","?相機電池與充電器","?記憶卡","?自拍棒／腳架"]],
+  ["衣服", ["上衣","褲子／裙子","內衣","內褲","襪子","睡衣","薄外套","?正式一點的衣服"]],
+  ["鞋帽配件", ["好走的鞋","?拖鞋","?帽子","?眼鏡／墨鏡"]],
+  ["盥洗用品", ["牙刷","牙膏","洗面乳","?牙線","?洗髮精（飯店有提供）","?潤絲精（飯店有提供）","?沐浴乳（飯店有提供）","?毛巾","?刮鬍刀","?隱形眼鏡與藥水"]],
+  ["保養", ["化妝水","乳液／乳霜","防曬乳","?精華液","?面膜","?護手霜"]],
+  ["化妝", ["化妝包","卸妝用品","?香水","?護唇膏"]],
+  ["髮品", ["梳子","?髮夾","?鯊魚夾","?髮圈","?吹風機（看飯店有沒有）","?離子夾／捲髮棒"]],
+  ["生活小物", ["面紙","濕紙巾","?衛生棉","?棉花棒","?化妝棉","?指甲剪","?小鏡子"]],
+  ["藥品與健康", ["個人處方藥","感冒藥","止痛藥","腸胃藥","?暈車藥","?過敏藥","?OK 繃","?防蚊液","?口罩","?乾洗手／酒精","?維他命","?眼藥水"]],
+  ["隨身行李", ["隨身口紅","?U 型枕","?眼罩","?耳塞","?保溫瓶／水壺","?筆（填入境卡）"]],
+  ["收納與雜物", ["隨身小包","?摺疊備用袋（回程裝伴手禮）","?環保袋","?摺疊傘","?夾鏈袋","?髒衣袋","?行李秤","?行李箱鎖"]],
+  ["出門前檢查", ["關瓦斯","拔掉電器插頭","關冷氣和電燈","倒垃圾","門窗上鎖","清掉冰箱容易壞的食物","澆花","安排寵物照顧"]]
+];
+// carry-on / security notes shown under the item
+const CAT_STYLE = {
+  "證件":["🛂","#2C7BE5"], "錢包與付款":["💳","#F2A900"], "充電與電源":["🔌","#7B61FF"], "3C 設備":["📱","#5B5BD6"],
+  "衣服":["👕","#FF7A59"], "鞋帽配件":["👟","#E8590C"], "盥洗用品":["🪥","#1CA7C9"], "保養":["🧴","#2BB673"],
+  "化妝":["💄","#E64980"], "髮品":["🎀","#D6336C"], "生活小物":["🧻","#8C7A5B"], "藥品與健康":["💊","#E03131"],
+  "隨身行李":["🎒","#0CA678"], "收納與雜物":["🧳","#9C6644"], "出門前檢查":["🏠","#495057"],
+  "海島度假":["🏝️","#12B8C9"], "出差":["💼","#364FC7"], "寒冷地區":["❄️","#4DABF7"], "登山健行":["⛰️","#2F9E44"], "帶小孩":["🧸","#F59F00"]
+};
+const NOTE = {
+  "行動電源":"只能隨身，不能託運",
+  "相機電池與充電器":"備用電池只能隨身，不能託運",
+  "保溫瓶／水壺":"過安檢前要先倒空",
+  "化妝水":"隨身帶的話每瓶要 100ml 以內",
+  "防曬乳":"隨身帶的話每瓶要 100ml 以內",
+  "卸妝用品":"液體隨身帶每瓶要 100ml 以內",
+  "刮鬍刀":"刀片式的要放託運"
+};
+const PACKS = {
+  "海島度假": ["泳衣","拖鞋","墨鏡","防水手機袋","帽子"],
+  "出差": ["正式服裝","名片","筆電與充電器","簡報筆"],
+  "寒冷地區": ["發熱衣","羽絨外套","毛帽","手套","圍巾","暖暖包","保濕霜","厚襪子"],
+  "登山健行": ["登山鞋","輕便雨衣","頭燈","水壺","登山杖"],
+  "帶小孩": ["尿布／濕紙巾","奶瓶","安撫玩具","兒童藥品","換洗衣物"]
+};
+// clothing quantity by trip length
+const QTY = {"上衣":d=>d, "內褲":d=>d, "襪子":d=>d, "內衣":d=>d, "褲子／裙子":d=>Math.ceil(d/2), "發熱衣":d=>Math.ceil(d/2), "面膜":d=>Math.max(1,d-1)};
+
+const uid = () => Math.random().toString(36).slice(2,10);
+const mkItems = names => names.map(n => n.startsWith("?") ? ({id:uid(), name:n.slice(1), done:false, need:false}) : ({id:uid(), name:n, done:false, need:true}));
+const isNeed = i => i.need !== false;
+function askConfirm(msg, yes="確定"){
+  return new Promise(res => {
+    const d = $("confirmDialog");
+    $("confirmText").textContent = msg; $("confirmYes").textContent = yes;
+    const done = v => { d.close(); $("confirmYes").onclick = $("confirmNo").onclick = d.oncancel = null; res(v); };
+    $("confirmYes").onclick = () => done(true);
+    $("confirmNo").onclick = () => done(false);
+    d.oncancel = e => { e.preventDefault(); done(false); };
+    d.showModal();
+  });
+}
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const daysUntil = ds => { const [y,m,d] = ds.split("-").map(Number); const t = new Date(); return Math.round((new Date(y,m-1,d) - new Date(t.getFullYear(),t.getMonth(),t.getDate()))/86400000); };
+const fmtDate = ds => { const [y,m,d] = ds.split("-").map(Number); const w = "日一二三四五六"[new Date(y,m-1,d).getDay()]; return `${m}/${d}（${w}）`; };
+
+function newTrip(dest, date, days, nights, packs){
+  const cats = BASE.map(([c,items]) => ({id:uid(), name:c, items:mkItems(items)}));
+  const seen = new Set(cats.flatMap(c=>c.items.map(i=>i.name)));
+  packs.forEach(p => { const names = PACKS[p].filter(n=>!seen.has(n)); names.forEach(n=>seen.add(n)); cats.push({id:uid(), name:p, items:mkItems(names)}); });
+  return {id:uid(), v:7, dest, date, days, nights, packs:[...packs], cats, remindedOn:null};
+}
+
+let state = {trips:[], activeId:null};
+let docRef = null, hideDone = false, curCat = null;
+const openCats = new Set(), openOpt = new Set();
+const LS_KEY = "packing-list-v2";
+const active = () => state.trips.find(t => t.id === state.activeId) || state.trips[0];
+
+let saveTimer = null;
+function save(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){}
+  if (!docRef) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try { await docRef.set({json: JSON.stringify(state), updated: Date.now()}); $("sync").textContent = "已同步到你的帳號"; }
+    catch(e){ docRef = null; setLogin(false); }
+  }, 500);
+}
+function commit(){ save(); render(); }
+
+/* ---------- views ---------- */
+function show(view){
+  $("setupView").hidden = view !== "setup";
+  $("listView").hidden = view !== "list";
+
+  window.scrollTo(0,0);
+}
+
+/* setup */
+const setup = {days:5, nights:4, packs:new Set()};
+function resetForm(){
+  setup.days = 5; setup.nights = 4; setup.packs = new Set();
+  $("sDest").value = ""; $("sDate").value = ""; $("sDate").min = todayStr(); $("sErr").textContent = "";
+  renderSetup();
+}
+function openSetup(showForm){
+  const has = state.trips.length > 0;
+  resetForm();
+  $("homeTrips").hidden = !has;
+  $("setupTitle").textContent = has ? "新的旅程" : "準備出發";
+  const formOn = !has || !!showForm;
+  $("setupForm").hidden = !formOn; $("newTripBtn").hidden = formOn; $("setupBack").hidden = !(has && formOn);
+  if (has) renderHome();
+  show("setup");
+  if (formOn && has) $("setupForm").scrollIntoView({behavior:"smooth"});
+}
+function renderHome(){
+  const list = [...state.trips].sort((a,b)=>a.date.localeCompare(b.date));
+  $("tripList").innerHTML = list.map(t => {
+    const all = t.cats.flatMap(c=>c.items).filter(isNeed), done = all.filter(i=>i.done).length;
+    const du = daysUntil(t.date);
+    const due = du > 0 ? `<strong>${du}</strong><span>天後出發</span>` : du === 0 ? `<strong>今天</strong><span>出發</span>` : `<strong>✈️</strong><span>已出發</span>`;
+    return `<div class="trip-row"><button class="trip-card" data-go="${t.id}">
+      <div class="tc-main"><b>${esc(t.dest)}</b><small>${fmtDate(t.date)}・${t.days}天${t.nights}夜・已打包 ${done}/${all.length}</small>
+      <div class="mini"><i style="width:${all.length?done/all.length*100:0}%"></i></div></div>
+      <div class="due ${du===0?"today":""}">${due}</div>
+    </button><button class="trip-x" data-delt="${t.id}" aria-label="刪除 ${esc(t.dest)} 行程">刪除</button></div>`;
+  }).join("");
+}
+function openTrip(id){ state.activeId = id; save(); show("list"); render(); showReminder(false); }
+$("tripList").addEventListener("click", async e => {
+  const x = e.target.closest("[data-delt]");
+  if (x){
+    const t = state.trips.find(t=>t.id===x.dataset.delt);
+    if (t && await askConfirm(`刪除「${t.dest}」${fmtDate(t.date)} 這趟行程？`, "刪除")){
+      state.trips = state.trips.filter(y=>y!==t);
+      state.activeId = state.trips[0] ? state.trips[0].id : null;
+      save(); openSetup(false);
+    }
+    return;
+  }
+  const b = e.target.closest("[data-go]"); if (b) openTrip(b.dataset.go);
+});
+$("newTripBtn").addEventListener("click", () => openSetup(true));
+$("homeBtn").addEventListener("click", () => openSetup(false));
+function renderSetup(){
+  $("sDays").textContent = setup.days; $("sNights").textContent = setup.nights;
+  $("sPacks").innerHTML = Object.keys(PACKS).map(p => `<button type="button" class="s-pack" data-spack="${esc(p)}" aria-pressed="${setup.packs.has(p)}">${CAT_STYLE[p]?CAT_STYLE[p][0]+" ":""}${esc(p)}</button>`).join("");
+}
+$("setupView").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.step){
+    const k = b.dataset.step, d = +b.dataset.d;
+    if (k === "days"){ setup.days = Math.max(1, Math.min(90, setup.days + d)); setup.nights = Math.max(0, setup.days - 1); }
+    else setup.nights = Math.max(0, Math.min(90, setup.nights + d));
+    renderSetup();
+  }
+  if (b.dataset.spack){ const p = b.dataset.spack; setup.packs.has(p) ? setup.packs.delete(p) : setup.packs.add(p); renderSetup(); }
+});
+$("setupBack").addEventListener("click", () => openSetup(false));
+$("setupForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const date = $("sDate").value;
+  if (!date){ $("sErr").textContent = "請選擇出發日期"; $("sDate").focus(); return; }
+  const dest = $("sDest").value.trim() || "我的旅行";
+  const t = newTrip(dest, date, setup.days, setup.nights, [...setup.packs]);
+  state.trips.push(t); state.activeId = t.id;
+  save(); show("list"); render();
+});
+
+/* list */
+function missingOf(t){
+  return t.cats.map(c => ({name:c.name, items:c.items.filter(i=>isNeed(i) && !i.done)})).filter(c=>c.items.length);
+}
+function render(){
+  const t = active(); if (!t) return;
+
+  const all = t.cats.flatMap(c => c.items).filter(isNeed);
+  const done = all.filter(i => i.done).length;
+  const left = all.length - done;
+  const du = daysUntil(t.date);
+  $("dest").textContent = t.dest;
+  $("tripName").textContent = `${fmtDate(t.date)} 出發`;
+  $("countdown").textContent = du > 0 ? du : du === 0 ? "今天" : "已出發";
+  $("countdownLabel").textContent = du > 0 ? "天後出發" : du === 0 ? "出發日" : "旅途中";
+  $("dn").textContent = `${t.days}天${t.nights}夜`;
+  $("packed").textContent = done;
+  $("left").textContent = left;
+  $("bar").style.width = all.length ? (done/all.length*100)+"%" : "0";
+  $("plane").style.left = `calc(18px + (100% - 36px) * ${all.length ? done/all.length : 0})`;
+  const st = $("status");
+  if (all.length && !left){ st.textContent = "必帶物品都打包好了，可以出發了！"; st.classList.add("done"); }
+  else { st.textContent = all.length ? `必帶物品完成 ${Math.round(done/all.length*100)}%` : "先加點東西進清單吧"; st.classList.remove("done"); }
+
+  // banner on departure day and the day before
+  const al = $("alert");
+  if (left && (du === 0 || du === 1)){
+    $("alertText").textContent = du === 0 ? `今天出發！還有 ${left} 樣必帶的沒打包` : `明天出發，還有 ${left} 樣必帶的沒打包`;
+    al.classList.add("show");
+  } else al.classList.remove("show");
+
+  $("packs").innerHTML = Object.keys(PACKS).map(p =>
+    `<button class="pack" data-pack="${esc(p)}" ${t.packs.includes(p)?"disabled":""}>${t.packs.includes(p)?"✓ ":(CAT_STYLE[p]?CAT_STYLE[p][0]+" ":"＋ ")}${esc(p)}</button>`
+  ).join("");
+
+  const row = i => `
+        <li class="item ${i.done?"done":""} ${isNeed(i)?"":"opt"}">
+          <label><input type="checkbox" data-item="${i.id}" ${i.done?"checked":""}><span class="name">${esc(i.name)}${NOTE[i.name]?`<small class="warn">⚠️ ${NOTE[i.name]}</small>`:""}</span>${QTY[i.name]?`<span class="qty">× ${QTY[i.name](t.days)}</span>`:""}</label>
+          <button class="del" data-del="${i.id}" aria-label="移除 ${esc(i.name)}">×</button>
+        </li>`;
+  $("cats").innerHTML = t.cats.map(c => {
+    const need = c.items.filter(isNeed), opt = c.items.filter(i=>!isNeed(i));
+    const nd = need.filter(i=>i.done).length, od = opt.filter(i=>i.done).length;
+    const needShown = hideDone ? need.filter(i=>!i.done) : need;
+    const optShown = hideDone ? opt.filter(i=>!i.done) : opt;
+    const full = need.length ? nd === need.length : (opt.length && od === opt.length);
+    const open = openCats.has(c.id), optOpen = openOpt.has(c.id);
+    const isTask = c.name === "出門前檢查";
+    const L = isTask ? {need:"必要檢查", opt:"其他", optShort:"其他", allDone:"都檢查好了，可以出門了", add:"新增檢查事項"} : {need:"必帶", opt:"可帶可不帶", optShort:"可帶", allDone:"必帶的都打包好了", add:"新增物品"};
+    const [ico, cc] = CAT_STYLE[c.name] || ["📦","#12A39A"];
+    return `<section class="cat ${open?"open":""} ${full?"is-full":""}" data-cat="${c.id}" style="--cc:${cc}">
+      <div class="cat-h" data-toggle="${c.id}" role="button" tabindex="0" aria-expanded="${open}"><h3><span class="caret" aria-hidden="true"></span><span class="ico" aria-hidden="true">${ico}</span>${esc(c.name)}</h3>
+        <span><span class="count ${full?"full":""}">${need.length?`${nd}/${need.length}`:`${L.optShort} ${opt.length}`}</span><button class="cat-del" data-delcat="${c.id}" aria-label="刪除分類 ${esc(c.name)}">刪除</button></span>
+      </div>
+      <div class="cat-body" ${open?"":"hidden"}>
+      ${need.length ? `<div class="branch">${L.need}</div>
+      <ul class="items tree">${needShown.map(row).join("")}</ul>
+      ${needShown.length===0 ? `<div class="empty-cat">${L.allDone}</div>`:""}` : ""}
+      ${opt.length ? `<div class="branch opt-h ${optOpen?"on":""}" data-opt="${c.id}" role="button" tabindex="0" aria-expanded="${optOpen}"><span class="caret sm" aria-hidden="true"></span>${L.opt}<span class="opt-count">${od}/${opt.length}</span></div>
+      ${optOpen ? `<ul class="items tree">${optShown.map(row).join("")}</ul>` : ""}` : ""}
+      ${c.items.length===0 ? `<div class="empty-cat">還沒有物品，在下面新增</div>`:""}
+      <form class="add-row" data-add="${c.id}">
+        <input placeholder="${L.add}" aria-label="在${esc(c.name)}${L.add}" maxlength="40">
+        ${isTask ? "" : `<select aria-label="${L.need}或${L.optShort}"><option value="1">${L.need}</option><option value="0">${L.optShort}</option></select>`}
+        <button class="btn" type="submit">加入</button>
+      </form>
+      </div>
+    </section>`;
+  }).join("");
+}
+
+/* expand / collapse categories */
+function toggleCat(id){
+  openCats.has(id) ? openCats.delete(id) : openCats.add(id);
+  render();
+}
+$("cats").addEventListener("click", e => {
+  if (e.target.closest("button")) return;
+  const o = e.target.closest("[data-opt]"); if (o){ const id = o.dataset.opt; openOpt.has(id) ? openOpt.delete(id) : openOpt.add(id); render(); return; }
+  const h = e.target.closest("[data-toggle]"); if (h) toggleCat(h.dataset.toggle);
+});
+$("cats").addEventListener("keydown", e => {
+  const o = e.target.closest("[data-opt]");
+  if (o && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); const id = o.dataset.opt; openOpt.has(id) ? openOpt.delete(id) : openOpt.add(id); render(); const again = document.querySelector(`[data-opt="${id}"]`); if (again) again.focus(); return; }
+  const h = e.target.closest("[data-toggle]");
+  if (h && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); toggleCat(h.dataset.toggle); const again = document.querySelector(`[data-toggle="${h.dataset.toggle}"]`); if (again) again.focus(); }
+});
+
+/* departure-day popup */
+function showReminder(force){
+  const t = active(); if (!t) return;
+  const du = daysUntil(t.date);
+  const miss = missingOf(t);
+  if (!miss.length) return;
+  if (!force && (du !== 0 || t.remindedOn === todayStr())) return;
+  const n = miss.reduce((a,c)=>a+c.items.length,0);
+  $("remindTitle").textContent = du === 0 ? `✈️ 今天出發去${t.dest}！` : du === 1 ? `明天就要出發去${t.dest}` : `${t.dest}：還沒打包的東西`;
+  $("remindSub").textContent = `還有 ${n} 樣東西沒打包：`;
+  $("missingList").innerHTML = miss.map(c => `<h4>${esc(c.name)}</h4><ul>${c.items.map(i=>`<li>${esc(i.name)}</li>`).join("")}</ul>`).join("");
+  $("remindDialog").showModal();
+  if (du === 0 && !force){ t.remindedOn = todayStr(); save(); }
+  // also try a system notification if the browser allows it
+  if (du === 0 && !force) tryNotify(t.dest, n);
+}
+function tryNotify(dest, n){
+  try {
+    if (!("Notification" in window)) return;
+    const fire = () => new Notification(`今天出發去${dest}`, {body:`還有 ${n} 樣東西沒打包`});
+    if (Notification.permission === "granted") fire();
+  } catch(e){}
+}
+$("remindLater").addEventListener("click", () => $("remindDialog").close());
+$("remindGo").addEventListener("click", () => {
+  $("remindDialog").close(); hideDone = true; $("hideDone").checked = true;
+  show("list"); render();
+});
+$("alertBtn").addEventListener("click", () => showReminder(true));
+
+function findItem(id){
+  for (const c of active().cats){ const i = c.items.find(x=>x.id===id); if (i) return {c,i}; }
+  return null;
+}
+$("listView").addEventListener("click", async e => {
+  const el = e.target.closest("button"); if (!el) return;
+  const t = active();
+  if (el.dataset.trip){ state.activeId = el.dataset.trip; commit(); showReminder(false); return; }
+  if (el.id === "addTrip"){ openSetup(); return; }
+  if (el.dataset.pack){
+    const p = el.dataset.pack;
+    let cat = t.cats.find(c => c.name === p);
+    if (!cat){ cat = {id:uid(), name:p, items:[]}; t.cats.push(cat); }
+    const existing = new Set(t.cats.flatMap(c=>c.items.map(i=>i.name)));
+    cat.items.push(...mkItems(PACKS[p].filter(n=>!existing.has(n))));
+    t.packs.push(p); commit(); return;
+  }
+  if (el.dataset.del){ const f = findItem(el.dataset.del); if (f){ f.c.items = f.c.items.filter(x=>x!==f.i); commit(); } return; }
+  if (el.dataset.delcat){
+    const c = t.cats.find(x=>x.id===el.dataset.delcat);
+    if (c && (c.items.length===0 || await askConfirm(`刪除「${c.name}」和裡面的 ${c.items.length} 樣物品？`, "刪除"))){
+      t.cats = t.cats.filter(x=>x!==c); t.packs = t.packs.filter(p=>p!==c.name); commit();
+    }
+  }
+});
+document.addEventListener("change", e => {
+  if (e.target.dataset.item){ const f = findItem(e.target.dataset.item); if (f){ f.i.done = e.target.checked; commit(); } }
+});
+document.addEventListener("submit", e => {
+  const f = e.target.closest("form[data-add]"); if (!f) return;
+  e.preventDefault();
+  const v = f.querySelector("input").value.trim(); if (!v) return;
+  const c = active().cats.find(x=>x.id===f.dataset.add); const sel = f.querySelector("select"); const need = !sel || sel.value === "1"; c.items.push({id:uid(), name:v, done:false, need}); if (!need) openOpt.add(c.id);
+  commit();
+  const again = document.querySelector(`form[data-add="${c.id}"] input`); if (again) again.focus();
+});
+$("newCatForm").addEventListener("submit", e => {
+  e.preventDefault(); const v = $("newCatInput").value.trim(); if (!v) return;
+  active().cats.push({id:uid(), name:v, items:[]}); $("newCatInput").value = ""; commit();
+});
+$("hideDone").addEventListener("change", e => { hideDone = e.target.checked; render(); });
+$("resetChecks").addEventListener("click", async () => {
+  if (!await askConfirm("把這趟行程的所有勾選都取消？", "全部取消")) return;
+  active().cats.forEach(c => c.items.forEach(i => i.done = false)); commit();
+});
+
+/* edit dialog */
+$("editTrip").addEventListener("click", () => {
+  const t = active();
+  $("fDest").value = t.dest; $("fDate").value = t.date; $("fDays").value = t.days; $("fNights").value = t.nights;
+  $("deleteTrip").style.visibility = "visible";
+  $("tripDialog").showModal();
+});
+$("cancelDialog").addEventListener("click", () => $("tripDialog").close());
+$("tripForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const t = active();
+  const dest = $("fDest").value.trim(); const date = $("fDate").value;
+  if (!dest || !date) return;
+  const oldDate = t.date;
+  Object.assign(t, {dest, date,
+    days: Math.max(1, Math.min(90, parseInt($("fDays").value)||1)),
+    nights: Math.max(0, Math.min(90, parseInt($("fNights").value)||0))});
+  if (date !== oldDate) t.remindedOn = null;
+  $("tripDialog").close(); commit();
+});
+$("deleteTrip").addEventListener("click", async () => {
+  const t = active();
+  if (!await askConfirm(`刪除「${t.dest}」這趟行程？`, "刪除")) return;
+  state.trips = state.trips.filter(x=>x!==t);
+  $("tripDialog").close();
+  state.activeId = state.trips[0] ? state.trips[0].id : null; save(); openSetup(false);
+});
+
+/* ---------- start ---------- */
+const TEMPLATE_V = 7;
+// rebuild trips made with an older list so they use the current categories; keep ticks by item name
+function migrate(){
+  let changed = false;
+  state.trips.forEach(t => {
+    if (t.v === TEMPLATE_V) return;
+    const doneNames = new Set(t.cats.flatMap(c => c.items.filter(i=>i.done).map(i=>i.name)));
+    const fresh = newTrip(t.dest, t.date, t.days, t.nights, (t.packs||[]).filter(p=>PACKS[p]));
+    fresh.cats.forEach(c => c.items.forEach(i => { if (doneNames.has(i.name)) i.done = true; }));
+    t.cats = fresh.cats; t.v = TEMPLATE_V; changed = true;
+  });
+  if (changed) save();
+}
+function boot(){
+  migrate();
+  openSetup(false);
+  // departure-day popup for any trip leaving today
+  const today = state.trips.find(t => daysUntil(t.date) === 0 && missingOf(t).length && t.remindedOn !== todayStr());
+  if (today){ state.activeId = today.id; showReminder(false); }
+}
+try { const s = localStorage.getItem(LS_KEY); if (s){ const p = JSON.parse(s); if (p && Array.isArray(p.trips)) state = p; } } catch(e){}
+boot();
+
+function setLogin(){}
+$("sync").textContent = "清單存在這台裝置上";
+</script>
+</body>
+</html>
